@@ -5,23 +5,7 @@ import urllib.request
 import base64
 import re
 from tlds import tld_set
-
-
-EMAIL_REGEX = '([%(local)s][%(local)s.]+[%(local)s]@[%(domain)s.]+\\.(?:%(tlds)s))(?:[^%(domain)s]|$)' % {
-    'local': 'A-Za-z0-9!#$%&\'*+\\-/=?^_`{|}~',
-    'domain': 'A-Za-z0-9\-',
-    'tlds': '|'.join(tld_set)
-}
-
-HIDDEN_AT_SYM = (" (at) ", " [at] ", " (@) ", " [@] ", " @ ")
-HIDDEN_DOT_SYM = (" (dot) ", " [dot] ", " (.) ", " [.] ", " . ")
-HIDDEN_REGEX = [
-    '(\w+({0})\w+({1})\w+)'.format(
-        at.replace("(", r"\(").replace(")", r"\)").replace("[", r"\[").replace("]", r"\]"),
-        dot.replace("(", r"\(").replace(")", r"\)").replace("[", r"\[").replace("]", r"\]"),
-    )
-    for at, dot in zip(HIDDEN_AT_SYM, HIDDEN_DOT_SYM)
-]
+from email_scraper import scrape_emails
 
 
 class Scraper:
@@ -40,21 +24,24 @@ class Scraper:
         href_links = self.extract_links_from(str(url))
         for link in href_links:
             link = urllib.parse.urljoin(url, link)
-
             if "#" in link:
                 link = link.split("#")[0]
 
             if self.target_url in link and link not in self.target_links:
                 self.target_links.append(link)
-                response = self.session.get(self.target_url)
+                response = self.session.get(self.target_url).content
+                print(scrape_emails(response))
                 self.crawl(link)
 
-
     def run(self):
-        self.crawl()
+        http = self.session.post("http://192.168.0.171/dvwa/login.php", data={'username': "admin", 'password': "password", 'Login': 'submit'})
+        if http.url == 'http://192.168.0.171/dvwa/index.php':
+            self.crawl()
+        else:
+            print("Nu merge")
 
 
-target = "http://192.168.108.128/dvwa/"
+target = "http://192.168.0.171/dvwa"
 
 scrap = Scraper(target)
 scrap.run()
